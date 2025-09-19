@@ -26,7 +26,7 @@ jobs:
       - name: Set up Flutter (pin exact version)
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.22.2"   # در صورت نیاز می‌تونی به 3.19.6 یا 3.24.0 تغییر بدی
+          flutter-version: "3.22.2"   # در صورت نیاز می‌تونی 3.19.6 یا 3.24.0 بذاری
           channel: stable
           architecture: x64
           cache: true
@@ -48,16 +48,25 @@ jobs:
           flutter clean
           flutter pub get
 
+      - name: Force Android SDK levels (compile/target=34, min=21)
+        run: |
+          # app/build.gradle (AGP قدیمی)
+          sed -i 's/compileSdkVersion \([0-9]\+\)/compileSdkVersion 34/g' android/app/build.gradle || true
+          sed -i 's/targetSdkVersion \([0-9]\+\)/targetSdkVersion 34/g' android/app/build.gradle || true
+          sed -i 's/minSdkVersion \([0-9]\+\)/minSdkVersion 21/g' android/app/build.gradle || true
+          # در صورت استفاده از نگارش جدیدتر (compileSdk/targetSdk بدون "Version")
+          sed -i 's/compileSdk \([0-9]\+\)/compileSdk 34/g' android/app/build.gradle || true
+          sed -i 's/targetSdk \([0-9]\+\)/targetSdk 34/g' android/app/build.gradle || true
+
       - name: Flutter doctor (verbose)
         run: flutter doctor -v
 
-      # بیلد با Gradle مستقیم برای لاگ کامل
+      # بیلد با Gradle (لاگ کامل برای خطایابی)
       - name: Build debug APK (Gradle with stacktrace)
         run: |
           cd android
           ./gradlew assembleDebug --stacktrace --info --warning-mode=all
 
-      # آپلود خروجی؛ هر دو مسیر احتمالی را پوشش می‌دهیم
       - name: Upload artifact (APK)
         uses: actions/upload-artifact@v4
         with:
