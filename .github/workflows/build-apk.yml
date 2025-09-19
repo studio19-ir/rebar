@@ -17,25 +17,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1) JDK 17 فقط برای نصب SDK (sdkmanager به 17 نیاز دارد)
+      # 1) JDK 17 فقط برای نصب SDK (خودِ sdkmanager به 17 نیاز دارد)
       - name: Set up Java 17 (for SDK install)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      # 2) نصب SDK با فرمت درستِ packages (به تورفتگی دقت کن)
-      - name: Set up Android SDK (platforms & build-tools)
-        uses: android-actions/setup-android@v3
-        with:
-          accept-android-sdk-licenses: true
-          log-accepted-android-sdk-licenses: true
-          packages: |
-            platform-tools
-            platforms;android-33
-            build-tools;33.0.2
+      # 2) نصب/به‌روزرسانی پکیج‌های اندروید بدون اکشن واسط
+      - name: Install Android SDK packages (direct)
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
-      # 3) سوئیچ به JDK 11 برای ست Gradle/AGP قدیمی‌تر (AGP 7.3.x + Gradle 7.5.1)
+      # 3) سوئیچ به JDK 11 برای ست AGP 7.3.x + Gradle 7.5.1
       - name: Set up Java 11 (for build)
         uses: actions/setup-java@v4
         with:
@@ -59,7 +54,7 @@ jobs:
           sdkmanager --list | head -n 50 || true
           echo "PWD=$(pwd)"; ls -la
 
-      # اگر android/ وجود نداشت، بساز (آسیبی به پروژه موجود نمی‌زند)
+      # اگر android/ نبود، بساز (آسیبی به پروژه موجود نمی‌زند)
       - name: Create Android platform if missing
         run: flutter create . --platforms=android
 
@@ -68,7 +63,7 @@ jobs:
           flutter clean
           flutter pub get
 
-      # 5) پین Gradle به 7.5.1 (سازگار با AGP 7.3.x)
+      # 5) پین Gradle به 7.5.1 (سازگار با AGP 7.3.x / Kotlin 1.7.x)
       - name: Pin Gradle wrapper to 7.5.1 (compatible with AGP 7.3)
         run: |
           sed -i 's#distributionUrl=.*#distributionUrl=https\://services.gradle.org/distributions/gradle-7.5.1-all.zip#g' android/gradle/wrapper/gradle-wrapper.properties
