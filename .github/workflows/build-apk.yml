@@ -17,13 +17,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # JDK 17 برای sdkmanager
+      # 1) JDK 17 فقط برای نصب SDK (sdkmanager به 17 نیاز دارد)
       - name: Set up Java 17 (for SDK install)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
+      # 2) نصب SDK با فرمت درستِ packages (به تورفتگی دقت کن)
       - name: Set up Android SDK (platforms & build-tools)
         uses: android-actions/setup-android@v3
         with:
@@ -34,13 +35,14 @@ jobs:
             platforms;android-33
             build-tools;33.0.2
 
-      # سوئیچ به JDK 11 برای ست Gradle/AGP
+      # 3) سوئیچ به JDK 11 برای ست Gradle/AGP قدیمی‌تر (AGP 7.3.x + Gradle 7.5.1)
       - name: Set up Java 11 (for build)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "11"
 
+      # 4) Flutter پایدار پین‌شده
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -57,6 +59,7 @@ jobs:
           sdkmanager --list | head -n 50 || true
           echo "PWD=$(pwd)"; ls -la
 
+      # اگر android/ وجود نداشت، بساز (آسیبی به پروژه موجود نمی‌زند)
       - name: Create Android platform if missing
         run: flutter create . --platforms=android
 
@@ -65,10 +68,12 @@ jobs:
           flutter clean
           flutter pub get
 
-      # Gradle 7.5.1 (سازگار با AGP 7.3.x)
+      # 5) پین Gradle به 7.5.1 (سازگار با AGP 7.3.x)
       - name: Pin Gradle wrapper to 7.5.1 (compatible with AGP 7.3)
-        run: sed -i 's#distributionUrl=.*#distributionUrl=https\://services.gradle.org/distributions/gradle-7.5.1-all.zip#g' android/gradle/wrapper/gradle-wrapper.properties
+        run: |
+          sed -i 's#distributionUrl=.*#distributionUrl=https\://services.gradle.org/distributions/gradle-7.5.1-all.zip#g' android/gradle/wrapper/gradle-wrapper.properties
 
+      # 6) اجبار سطوح SDK + AndroidX + namespace + exported
       - name: Force SDK levels & manifest basics
         run: |
           sed -i 's/compileSdkVersion \([0-9]\+\)/compileSdkVersion 33/g' android/app/build.gradle || true
@@ -89,9 +94,11 @@ jobs:
       - name: Flutter doctor (verbose)
         run: flutter doctor -v
 
+      # 7) ساخت APK دیباگ
       - name: Build debug APK (flutter)
         run: flutter build apk --debug -v
 
+      # 8) تحویل خروجی به‌صورت Artifact
       - name: Upload artifact (APK)
         uses: actions/upload-artifact@v4
         with:
