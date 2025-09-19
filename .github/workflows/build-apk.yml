@@ -1,7 +1,7 @@
 name: Build Android APK (Flutter)
 
 on:
-  workflow_dispatch: {}   # اجرای دستی از تب Actions
+  workflow_dispatch: {}
   push:
     paths:
       - "lib/**"
@@ -11,6 +11,8 @@ on:
 jobs:
   build-debug:
     runs-on: ubuntu-latest
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2g -Dkotlin.daemon.jvm.options=-Xmx1g"
 
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +26,7 @@ jobs:
       - name: Set up Flutter (pin exact version)
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.22.2"   # در صورت نیاز نسخه پایدار دیگر وارد کن (مثلاً 3.19.6 یا 3.24.0)
+          flutter-version: "3.22.2"   # در صورت نیاز می‌تونی به 3.19.6 یا 3.24.0 تغییر بدی
           channel: stable
           architecture: x64
           cache: true
@@ -37,21 +39,29 @@ jobs:
           echo "PWD=$(pwd)"
           ls -la
 
-      # اگر پوشه android/ وجود نداشته باشد، پلتفرم اندروید را می‌سازد
+      # اگر پلتفرم اندروید نبود، بساز
       - name: Create Android platform if missing
         run: flutter create . --platforms=android
+
+      - name: Flutter clean & pub get
+        run: |
+          flutter clean
+          flutter pub get
 
       - name: Flutter doctor (verbose)
         run: flutter doctor -v
 
-      - name: Flutter pub get
-        run: flutter pub get
+      # بیلد با Gradle مستقیم برای لاگ کامل
+      - name: Build debug APK (Gradle with stacktrace)
+        run: |
+          cd android
+          ./gradlew assembleDebug --stacktrace --info --warning-mode=all
 
-      - name: Build debug APK
-        run: flutter build apk --debug -v
-
+      # آپلود خروجی؛ هر دو مسیر احتمالی را پوشش می‌دهیم
       - name: Upload artifact (APK)
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            build/app/outputs/flutter-apk/app-debug.apk
