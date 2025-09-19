@@ -143,3 +143,33 @@ jobs:
           path: |
             android/app/build/outputs/apk/debug/app-debug.apk
             build/app/outputs/flutter-apk/app-debug.apk
+
+      # ⬇️ بیلد تشخیصی Gradle (برای دیدن What went wrong در صورت خطا)
+      - name: Build (Gradle direct, diagnostic)
+        run: |
+          cd android
+          ./gradlew --version
+          ./gradlew assembleDebug --stacktrace --info --warning-mode=all --no-daemon --console=plain
+        continue-on-error: true
+
+      # ⬇️ بیلد اصلی با Flutter (اگر خروجی نسازد، Job خطا می‌شود)
+      - name: Build debug APK (Flutter)
+        run: flutter build apk --debug -v
+
+      # ⬇️ نمایش مسیر خروجی‌ها در لاگ
+      - name: Locate outputs
+        run: |
+          echo "::group::APK outputs"
+          find build -type f -name "*.apk" -print || true
+          find android -type f -name "*.apk" -print || true
+          echo "::endgroup::"
+
+      # ⬇️ آپلود همه‌ی APKها با الگوی کلی
+      - name: Upload artifact (APK)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: |
+            build/**/outputs/**/*.apk
+            android/**/outputs/**/*.apk
+          if-no-files-found: error
