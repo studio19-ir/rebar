@@ -17,14 +17,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1) JDK 17 فقط برای نصب SDK لازم است (sdkmanager به 17 نیاز دارد)
+      # JDK 17 برای sdkmanager
       - name: Set up Java 17 (for SDK install)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      # 2) نصب Android SDK با ورودی درست: packages
       - name: Set up Android SDK (platforms & build-tools)
         uses: android-actions/setup-android@v3
         with:
@@ -35,14 +34,13 @@ jobs:
             platforms;android-33
             build-tools;33.0.2
 
-      # 3) سوئیچ به JDK 11 برای ست سازگار AGP 7.3 + Gradle 7.5.1
+      # سوئیچ به JDK 11 برای ست Gradle/AGP
       - name: Set up Java 11 (for build)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "11"
 
-      # 4) Flutter
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -59,7 +57,6 @@ jobs:
           sdkmanager --list | head -n 50 || true
           echo "PWD=$(pwd)"; ls -la
 
-      # اگر android/ نبود، بساز
       - name: Create Android platform if missing
         run: flutter create . --platforms=android
 
@@ -68,12 +65,10 @@ jobs:
           flutter clean
           flutter pub get
 
-      # 5) پین Gradle wrapper به 7.5.1 (سازگار با AGP 7.3.x)
+      # Gradle 7.5.1 (سازگار با AGP 7.3.x)
       - name: Pin Gradle wrapper to 7.5.1 (compatible with AGP 7.3)
-        run: |
-          sed -i 's#distributionUrl=.*#distributionUrl=https\://services.gradle.org/distributions/gradle-7.5.1-all.zip#g' android/gradle/wrapper/gradle-wrapper.properties
+        run: sed -i 's#distributionUrl=.*#distributionUrl=https\://services.gradle.org/distributions/gradle-7.5.1-all.zip#g' android/gradle/wrapper/gradle-wrapper.properties
 
-      # 6) تنظیم SDK levels + namespace + exported
       - name: Force SDK levels & manifest basics
         run: |
           sed -i 's/compileSdkVersion \([0-9]\+\)/compileSdkVersion 33/g' android/app/build.gradle || true
@@ -81,17 +76,11 @@ jobs:
           sed -i 's/minSdkVersion \([0-9]\+\)/minSdkVersion 21/g' android/app/build.gradle || true
           sed -i 's/compileSdk \([0-9]\+\)/compileSdk 33/g' android/app/build.gradle || true
           sed -i 's/targetSdk \([0-9]\+\)/targetSdk 33/g' android/app/build.gradle || true
-
-          # AndroidX و Jetifier
           grep -q '^android.useAndroidX=' android/gradle.properties 2>/dev/null || echo 'android.useAndroidX=true' >> android/gradle.properties
           grep -q '^android.enableJetifier=' android/gradle.properties 2>/dev/null || echo 'android.enableJetifier=true' >> android/gradle.properties
-
-          # namespace لازم برای AGP 7+
           if ! grep -q 'namespace' android/app/build.gradle; then
             sed -i '0,/android\s*{/{s/android\s*{/android {\n    namespace "com.example.rebar_calc_pro"/}' android/app/build.gradle
           fi
-
-          # android:exported برای Android 12+
           MANIFEST=android/app/src/main/AndroidManifest.xml
           if [ -f "$MANIFEST" ] && ! grep -q 'android:exported=' "$MANIFEST"; then
             sed -i '0,/<activity /s//<activity android:exported="true" /' "$MANIFEST"
@@ -100,7 +89,6 @@ jobs:
       - name: Flutter doctor (verbose)
         run: flutter doctor -v
 
-      # 7) بیلد با Flutter (ست نسخه‌ها الآن هم‌خانواده است)
       - name: Build debug APK (flutter)
         run: flutter build apk --debug -v
 
