@@ -17,21 +17,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ✅ JDK 11 (سازگار با AGP 7.3.x)
-      - name: Set up Java 11
+      # 1) JDK 17 فقط برای نصب SDK لازم است (sdkmanager به 17 نیاز دارد)
+      - name: Set up Java 17 (for SDK install)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # 2) نصب Android SDK با ورودی درست: packages
+      - name: Set up Android SDK (platforms & build-tools)
+        uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: true
+          packages: |
+            platform-tools
+            platforms;android-33
+            build-tools;33.0.2
+
+      # 3) سوئیچ به JDK 11 برای ست سازگار AGP 7.3 + Gradle 7.5.1
+      - name: Set up Java 11 (for build)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "11"
 
-      # ✅ Android SDK 33 + Build-Tools
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          api-level: 33
-          build-tools: "33.0.2"
-
-      # Flutter (می‌تونه همین بمونه)
+      # 4) Flutter
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -57,12 +68,12 @@ jobs:
           flutter clean
           flutter pub get
 
-      # ✅ Gradle Wrapper را با AGP 7.3 هم‌خوان کن
+      # 5) پین Gradle wrapper به 7.5.1 (سازگار با AGP 7.3.x)
       - name: Pin Gradle wrapper to 7.5.1 (compatible with AGP 7.3)
         run: |
           sed -i 's#distributionUrl=.*#distributionUrl=https\://services.gradle.org/distributions/gradle-7.5.1-all.zip#g' android/gradle/wrapper/gradle-wrapper.properties
 
-      # مقادیر SDK و الزامات جدید
+      # 6) تنظیم SDK levels + namespace + exported
       - name: Force SDK levels & manifest basics
         run: |
           sed -i 's/compileSdkVersion \([0-9]\+\)/compileSdkVersion 33/g' android/app/build.gradle || true
@@ -89,7 +100,7 @@ jobs:
       - name: Flutter doctor (verbose)
         run: flutter doctor -v
 
-      # ✅ بیلد (خود Flutter که نسخه‌ها را درست هندل کند)
+      # 7) بیلد با Flutter (ست نسخه‌ها الآن هم‌خانواده است)
       - name: Build debug APK (flutter)
         run: flutter build apk --debug -v
 
