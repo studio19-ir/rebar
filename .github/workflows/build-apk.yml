@@ -26,7 +26,7 @@ jobs:
       - name: Set up Flutter (pin exact version)
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.22.2"   # در صورت نیاز می‌تونی 3.19.6 یا 3.24.0 بذاری
+          flutter-version: "3.22.2"   # در صورت نیاز می‌تونی 3.19.6 یا 3.24.0 بزنی
           channel: stable
           architecture: x64
           cache: true
@@ -48,13 +48,33 @@ jobs:
           flutter clean
           flutter pub get
 
+      # 🔧 پچ خودکار نسخه‌های Gradle/AGP/Kotlin + AndroidX
+      - name: Patch Android Gradle/AGP/Kotlin versions
+        run: |
+          set -e
+          echo "==> Forcing Gradle wrapper to 8.7"
+          sed -i 's#distributionUrl=.*#distributionUrl=https\://services.gradle.org/distributions/gradle-8.7-all.zip#g' android/gradle/wrapper/gradle-wrapper.properties || true
+
+          echo "==> Forcing AGP/Kotlin in android/build.gradle (both plugin DSL & legacy)"
+          # Plugin DSL (جدید)
+          sed -i 's/id "com.android.application" version "[^"]*"/id "com.android.application" version "8.4.2"/' android/build.gradle || true
+          sed -i 's/id "com.android.library" version "[^"]*"/id "com.android.library" version "8.4.2"/' android/build.gradle || true
+          sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "1.9.24"/' android/build.gradle || true
+          # Legacy classpath (قدیمی)
+          sed -i 's/com\.android\.tools\.build:gradle:[^"]*/com.android.tools.build:gradle:8.4.2/g' android/build.gradle || true
+          sed -i 's/kotlin-gradle-plugin:[^"]*/kotlin-gradle-plugin:1.9.24/g' android/build.gradle || true
+
+          echo "==> Ensure AndroidX + Jetifier + JVM args"
+          grep -q '^android.useAndroidX=' android/gradle.properties 2>/dev/null || echo 'android.useAndroidX=true' >> android/gradle.properties
+          grep -q '^android.enableJetifier=' android/gradle.properties 2>/dev/null || echo 'android.enableJetifier=true' >> android/gradle.properties
+          grep -q '^org.gradle.jvmargs=' android/gradle.properties 2>/dev/null || echo 'org.gradle.jvmargs=-Xmx2g -Dkotlin.daemon.jvm.options=-Xmx1g' >> android/gradle.properties
+
+      # 🔧 تنظیم سطح SDKها (برای هر دو نحوۀ قدیم/جدید)
       - name: Force Android SDK levels (compile/target=34, min=21)
         run: |
-          # app/build.gradle (AGP قدیمی)
           sed -i 's/compileSdkVersion \([0-9]\+\)/compileSdkVersion 34/g' android/app/build.gradle || true
           sed -i 's/targetSdkVersion \([0-9]\+\)/targetSdkVersion 34/g' android/app/build.gradle || true
           sed -i 's/minSdkVersion \([0-9]\+\)/minSdkVersion 21/g' android/app/build.gradle || true
-          # در صورت استفاده از نگارش جدیدتر (compileSdk/targetSdk بدون "Version")
           sed -i 's/compileSdk \([0-9]\+\)/compileSdk 34/g' android/app/build.gradle || true
           sed -i 's/targetSdk \([0-9]\+\)/targetSdk 34/g' android/app/build.gradle || true
 
@@ -65,9 +85,11 @@ jobs:
       - name: Build debug APK (Gradle with stacktrace)
         run: |
           cd android
+          ./gradlew --version
           ./gradlew assembleDebug --stacktrace --info --warning-mode=all
 
       - name: Upload artifact (APK)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
