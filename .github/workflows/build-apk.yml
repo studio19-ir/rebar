@@ -1,7 +1,7 @@
 name: Build Android APK (Flutter)
 
 on:
-  workflow_dispatch: {}   # دکمه Run دستی
+  workflow_dispatch: {}
   push:
     paths:
       - "lib/**"
@@ -23,19 +23,35 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'stable'   # در صورت نیاز می‌تونی نسخه دقیق بزنی
+          flutter-version: 'stable'   # می‌تونی نسخه دقیق هم بدهی
 
+      - name: Print versions & env
+        run: |
+          flutter --version
+          dart --version
+          java -version
+          echo "PWD=$(pwd)"
+          ls -la
+
+      # اگر فولدر android نباشد، بساز
       - name: Create Android platform if missing
         run: flutter create . --platforms=android
 
-      - name: Flutter doctor (debug info)
+      - name: Flutter doctor (verbose)
         run: flutter doctor -v
 
       - name: Flutter pub get
         run: flutter pub get
 
+      # اختیاری: اگر Gradle گاهی کند شد
+      # - name: Gradle properties tweak
+      #   run: |
+      #     mkdir -p ~/.gradle
+      #     echo "org.gradle.daemon=true" >> ~/.gradle/gradle.properties
+      #     echo "org.gradle.jvmargs=-Xmx2048m -Dkotlin.daemon.jvm.options=-Xmx512m" >> ~/.gradle/gradle.properties
+
       - name: Build debug APK
-        run: flutter build apk --debug
+        run: flutter build apk --debug -v
 
       - name: Upload artifact (APK)
         uses: actions/upload-artifact@v4
